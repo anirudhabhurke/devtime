@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevTime - Epoch & Timestamp Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f1f5f9;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            border-radius: 0.75rem;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+
+        /* Distinct Editable Input Style */
+        .editable-input {
+            background: rgba(2, 6, 23, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #10b981;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+        }
+
+        .editable-input:focus {
+            border-color: #10b981;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+            background: #000;
+        }
+
+        /* Read-only Result Box Style */
+        .result-box {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #f1f5f9;
+            cursor: default;
+            font-size: 0.95rem;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #10b981;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 3000;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Custom Dropdown Styling */
+        .custom-select-container {
+            position: relative;
+            user-select: none;
+            z-index: 10;
+        }
+
+        .custom-select-trigger {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 0 0.75rem;
+            border-radius: 0.375rem;
+            background: rgba(2, 6, 23, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+            font-size: 0.9rem;
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0; /* Default right alignment for first card */
+            width: 450px;
+            max-width: 85vw;
+            margin-top: 0.25rem;
+            background: #0f172a;
+            border: 1px solid rgba(16, 185, 129, 0.5);
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        /* Specific alignment for the second dropdown */
+        #dateToEpochTzMenu {
+            right: auto;
+            left: 0;
+        }
+
+        @media (max-width: 768px) {
+            .custom-dropdown-menu {
+                width: 100%;
+                left: 0;
+                right: 0;
+                max-width: none;
+            }
+        }
+
+        .custom-dropdown-menu.show {
+            display: flex;
+        }
+
+        .tz-search-box {
+            padding: 0.5rem;
+            background: #0f172a;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tz-search-box input {
+            width: 100%;
+            background: rgba(2, 6, 23, 0.8);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 0.25rem;
+            padding: 0.5rem 0.75rem;
+            color: #f1f5f9;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .tz-columns {
+            display: flex;
+            height: 280px;
+        }
+
+        .tz-region-col {
+            width: 150px;
+            background: #0a0f1d;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            overflow-y: auto;
+        }
+
+        .tz-list-col {
+            flex: 1;
+            overflow-y: auto;
+            background: #0f172a;
+        }
+
+        .region-item {
+            padding: 0.6rem 0.85rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            color: #94a3b8;
+            border-left: 3px solid transparent;
+        }
+
+        .region-item.active {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border-left-color: #10b981;
+            font-weight: 600;
+        }
+
+        .tz-item {
+            padding: 0.6rem 0.85rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            color: #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tz-item:hover {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .tz-item.selected {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        /* Delete button styling */
+        .tz-delete-btn {
+            opacity: 0;
+            color: #10b981; /* Green */
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-size: 0.75rem;
+            background: rgba(16, 185, 129, 0.1); /* Green tint */
+            margin-left: 8px;
+        }
+        
+        .tz-item:hover .tz-delete-btn {
+            opacity: 1;
+        }
+
+        .tz-delete-btn:hover {
+            background: rgba(16, 185, 129, 0.3);
+            color: #d1fae5;
+        }
+
+        .tz-region-col::-webkit-scrollbar, .tz-list-col::-webkit-scrollbar {
+            width: 4px;
+        }
+        .tz-region-col::-webkit-scrollbar-thumb, .tz-list-col::-webkit-scrollbar-thumb {
+            background: rgba(16, 185, 129, 0.3);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 flex flex-col items-center pb-40"> <!-- Added extra bottom padding -->
+
+    <div class="w-full max-w-3xl space-y-5">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center gap-2">
+            <h1 class="text-3xl font-bold tracking-tight text-white">
+                Dev<span class="text-emerald-400">Time</span>
+            </h1>
+            <div class="flex items-center gap-3 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
+                <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">Epoch:</span>
+                <span id="liveEpoch" class="mono text-emerald-300 font-bold text-base">---</span>
+            </div>
+        </header>
+
+        <main class="space-y-5">
+            
+            <!-- CARD 1: EPOCH TO HUMAN -->
+            <section class="glass-card p-5 shadow-xl">
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="section-title mb-0"><i class="fa-solid fa-bolt"></i> Epoch to Date</label>
+                        <div class="flex flex-col md:flex-row gap-3">
+                            <div class="relative flex-1">
+                                <input type="text" id="epochInput" placeholder="Enter Epoch or Date..." class="w-full editable-input px-3 rounded-md text-lg mono h-[45px]">
+                                <button onclick="setToNow()" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-500 hover:text-emerald-400">NOW</button>
+                            </div>
+                            
+                            <!-- Custom Timezone Picker 1 -->
+                            <div class="md:w-64 custom-select-container" id="epochTzContainer">
+                                <div class="custom-select-trigger h-[45px]" id="epochTzTrigger">
+                                    <span id="epochTzDisplay" class="truncate">Loading...</span>
+                                    <i class="fa-solid fa-chevron-down text-xs opacity-50 ml-2"></i>
+                                </div>
+                                <div class="custom-dropdown-menu" id="epochTzMenu">
+                                    <div class="tz-search-box">
+                                        <input type="text" placeholder="Search..." id="epochTzSearch">
+                                    </div>
+                                    <div class="tz-columns">
+                                        <div class="tz-region-col" id="epochTzRegions"></div>
+                                        <div class="tz-list-col" id="epochTzList"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="epochResults" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-emerald-500/10">
+                        <div class="space-y-3">
+                            <!-- Epoch Timestamp -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Epoch Timestamp</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resEpochTimestamp" class="flex-1 result-box p-2.5 rounded mono text-sm text-emerald-300">---</div>
+                                    <button onclick="copyText('resEpochTimestamp')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Timestamp in Milliseconds -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Timestamp (ms)</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resEpochMillis" class="flex-1 result-box p-2.5 rounded mono text-sm text-emerald-300">---</div>
+                                    <button onclick="copyText('resEpochMillis')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- Date and Time (GMT) -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Date (GMT)</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resGMT" class="flex-1 result-box p-2.5 rounded mono text-sm">---</div>
+                                    <button onclick="copyText('resGMT')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Date and Time (Local/Selected) -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Date (<span id="localTzLabel">Local</span>)</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resLocal" class="flex-1 result-box p-2.5 rounded mono text-sm">---</div>
+                                    <button onclick="copyText('resLocal')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Relative Time Footer -->
+                    <div class="text-left pt-2">
+                         <span class="text-xs text-slate-500 font-bold uppercase">Relative:</span>
+                         <span id="resRelative" class="text-sm text-emerald-400 font-medium italic ml-1">---</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CARD 2: DATE TO EPOCH -->
+            <section class="glass-card p-5 shadow-xl">
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <!-- Header with Toggle -->
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="section-title mb-0"><i class="fa-solid fa-calendar-days"></i> Date to Epoch</label>
+                            
+                            <div class="flex items-center gap-3 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-white/5">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">12H Mode</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="timeFormatToggle" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Grid layout adjusted dynamically via JS -->
+                        <div id="dateInputGrid" class="grid grid-cols-3 gap-2 transition-all">
+                            <div class="flex flex-col gap-1">
+                                <label for="yr" class="text-[11px] text-slate-500 font-bold uppercase px-1">Year</label>
+                                <input type="number" id="yr" placeholder="YYYY" class="editable-input px-2 rounded text-center mono w-full h-[45px]">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="mo" class="text-[11px] text-slate-500 font-bold uppercase px-1">Mon</label>
+                                <input type="number" id="mo" placeholder="MM" class="editable-input px-2 rounded text-center mono w-full h-[45px]">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="da" class="text-[11px] text-slate-500 font-bold uppercase px-1">Day</label>
+                                <input type="number" id="da" placeholder="DD" class="editable-input px-2 rounded text-center mono w-full h-[45px]">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="hr" class="text-[11px] text-slate-500 font-bold uppercase px-1">Hr</label>
+                                <input type="number" id="hr" placeholder="HH" class="editable-input px-2 rounded text-center mono w-full h-[45px]">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="mi" class="text-[11px] text-slate-500 font-bold uppercase px-1">Min</label>
+                                <input type="number" id="mi" placeholder="mm" class="editable-input px-2 rounded text-center mono w-full h-[45px]">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="sc" class="text-[11px] text-slate-500 font-bold uppercase px-1">Sec</label>
+                                <input type="number" id="sc" placeholder="ss" class="editable-input px-2 rounded text-center mono w-full h-[45px]">
+                            </div>
+                            
+                            <!-- Hidden AM/PM Selector -->
+                            <div class="flex flex-col gap-1 hidden" id="ampmContainer">
+                                <label for="ampm" class="text-[11px] text-slate-500 font-bold uppercase px-1">AM/PM</label>
+                                <div class="relative w-full">
+                                    <select id="ampm" class="editable-input px-2 rounded text-center mono w-full h-[45px] cursor-pointer appearance-none">
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-emerald-500">
+                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-3 pt-2 items-end">
+                            
+                            <!-- Custom Timezone Picker 2 -->
+                            <div class="flex-1 custom-select-container" id="dateToEpochTzContainer">
+                                <label class="text-[11px] text-slate-500 font-bold uppercase px-1 mb-1 block">Timezone</label>
+                                <div class="custom-select-trigger h-[45px]" id="dateToEpochTzTrigger">
+                                    <span id="dateToEpochTzDisplay" class="truncate">Loading...</span>
+                                    <i class="fa-solid fa-chevron-down text-xs opacity-50 ml-2"></i>
+                                </div>
+                                <div class="custom-dropdown-menu" id="dateToEpochTzMenu">
+                                    <div class="tz-search-box">
+                                        <input type="text" placeholder="Search..." id="dateToEpochTzSearch">
+                                    </div>
+                                    <div class="tz-columns">
+                                        <div class="tz-region-col" id="dateToEpochTzRegions"></div>
+                                        <div class="tz-list-col" id="dateToEpochTzList"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onclick="convertToEpoch()" class="px-8 bg-emerald-600 hover:bg-emerald-500 rounded-md font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 h-[45px] flex items-center justify-center text-white">Generate</button>
+                        </div>
+                    </div>
+
+                    <div id="dateToEpochResults" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-emerald-500/10">
+                        <div class="space-y-3">
+                            <!-- Epoch Seconds -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Epoch Seconds</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resGenSec" class="flex-1 result-box p-2.5 rounded mono text-sm text-emerald-300">---</div>
+                                    <button onclick="copyText('resGenSec')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+                            
+                            <!-- Epoch Milliseconds -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Epoch Milliseconds</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resGenMs" class="flex-1 result-box p-2.5 rounded mono text-sm text-emerald-300">---</div>
+                                    <button onclick="copyText('resGenMs')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- Date and Time (GMT) -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Date (GMT)</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resGenGMT" class="flex-1 result-box p-2.5 rounded mono text-sm">---</div>
+                                    <button onclick="copyText('resGenGMT')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Date and Time (Local) -->
+                            <div>
+                                <label class="text-[11px] text-slate-500 font-bold uppercase mb-1 block">Date (<span id="genLocalTzLabel">Local</span>)</label>
+                                <div class="flex items-center gap-2">
+                                    <div id="resGenLocal" class="flex-1 result-box p-2.5 rounded mono text-sm">---</div>
+                                    <button onclick="copyText('resGenLocal')" class="p-2.5 bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 transition-colors h-full flex items-center"><i class="fa-regular fa-copy text-sm"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="toast" class="toast px-6 py-3 bg-emerald-600 text-white rounded-full shadow-xl font-medium text-sm flex items-center gap-3">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>Copied to clipboard</span>
+    </div>
+
+    <script>
+        // Data and State
+        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const allTimezones = Intl.supportedValuesOf('timeZone');
+        let state = {
+            epochTz: userTz,
+            dateToEpochTz: userTz,
+            activeRegionEpoch: 'Frequently Used',
+            activeRegionDate: 'Frequently Used'
+        };
+
+        // Storage Helpers
+        function getSavedTimezones() {
+            try {
+                return JSON.parse(localStorage.getItem('devTime_savedTz') || '[]');
+            } catch { return []; }
+        }
+
+        function saveTimezone(tz) {
+            if (tz === 'UTC' || tz === userTz) return;
+            const saved = getSavedTimezones();
+            if (!saved.includes(tz)) {
+                saved.push(tz);
+                localStorage.setItem('devTime_savedTz', JSON.stringify(saved));
+            }
+        }
+
+        function removeTimezone(tz) {
+            const saved = getSavedTimezones();
+            const newSaved = saved.filter(t => t !== tz);
+            localStorage.setItem('devTime_savedTz', JSON.stringify(newSaved));
+        }
+
+        // Grouped Data
+        function getGroupedTimezones(filter = '') {
+            const groups = { 'Frequently Used': [] };
+            filter = filter.toLowerCase();
+
+            // Setup Frequently Used
+            if (!filter || userTz.toLowerCase().includes(filter) || 'local'.includes(filter)) {
+                groups['Frequently Used'].push({ value: userTz, label: `Local: ${userTz}`, isFixed: true });
+            }
+            if (!filter || 'utc'.includes(filter)) {
+                groups['Frequently Used'].push({ value: 'UTC', label: 'UTC', isFixed: true });
+            }
+
+            // Saved
+            const saved = getSavedTimezones();
+            saved.forEach(tz => {
+                if (!filter || tz.toLowerCase().includes(filter)) {
+                    if (tz !== userTz && tz !== 'UTC') {
+                        groups['Frequently Used'].push({ value: tz, label: tz, isFixed: false });
+                    }
+                }
+            });
+
+            // All Regions
+            allTimezones.forEach(tz => {
+                if (filter && !tz.toLowerCase().includes(filter)) return;
+                const region = tz.includes('/') ? tz.split('/')[0] : 'Other';
+                if (!groups[region]) groups[region] = [];
+                groups[region].push({ value: tz, label: tz, isFixed: false });
+            });
+
+            return groups;
+        }
+
+        // UI Components Logic
+        function setupCustomDropdown(idPrefix) {
+            const container = document.getElementById(`${idPrefix}Container`);
+            const trigger = document.getElementById(`${idPrefix}Trigger`);
+            const menu = document.getElementById(`${idPrefix}Menu`);
+            const search = document.getElementById(`${idPrefix}Search`);
+            const regionsList = document.getElementById(`${idPrefix}Regions`);
+            const tzList = document.getElementById(`${idPrefix}List`);
+            const display = document.getElementById(`${idPrefix}Display`);
+
+            const stateKey = idPrefix === 'epochTz' ? 'epochTz' : 'dateToEpochTz';
+            const regionKey = idPrefix === 'epochTz' ? 'activeRegionEpoch' : 'activeRegionDate';
+
+            display.textContent = state[stateKey];
+
+            function render() {
+                const grouped = getGroupedTimezones(search.value);
+                
+                if (search.value && (!grouped[state[regionKey]] || grouped[state[regionKey]].length === 0)) {
+                    const firstMatch = Object.keys(grouped).find(k => grouped[k].length > 0);
+                    if (firstMatch) state[regionKey] = firstMatch;
+                }
+
+                if (regionsList) {
+                    regionsList.innerHTML = '';
+                    Object.keys(grouped).forEach(region => {
+                        if (grouped[region].length === 0) return;
+                        const el = document.createElement('div');
+                        el.className = `region-item ${state[regionKey] === region ? 'active' : ''}`;
+                        el.textContent = region;
+                        el.onclick = (e) => {
+                            e.stopPropagation();
+                            state[regionKey] = region;
+                            render();
+                        };
+                        regionsList.appendChild(el);
+                    });
+                }
+
+                if (tzList) {
+                    tzList.innerHTML = '';
+                    const items = grouped[state[regionKey]] || [];
+                    items.forEach(item => {
+                        const el = document.createElement('div');
+                        el.className = `tz-item ${state[stateKey] === item.value ? 'selected' : ''}`;
+                        
+                        const textSpan = document.createElement('span');
+                        textSpan.textContent = item.label;
+                        el.appendChild(textSpan);
+
+                        if (state[regionKey] === 'Frequently Used' && !item.isFixed) {
+                            const delBtn = document.createElement('button');
+                            // Changed icon to cross (xmark)
+                            delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                            delBtn.className = 'tz-delete-btn';
+                            delBtn.title = "Remove";
+                            delBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                removeTimezone(item.value);
+                                render();
+                            };
+                            el.appendChild(delBtn);
+                        }
+
+                        el.onclick = (e) => {
+                            e.stopPropagation();
+                            state[stateKey] = item.value;
+                            display.textContent = item.value;
+                            saveTimezone(item.value);
+                            closeAllMenus();
+                            if (idPrefix === 'epochTz') processEpoch();
+                            render();
+                        };
+                        tzList.appendChild(el);
+                    });
+                }
+            }
+
+            trigger.onclick = (e) => {
+                e.stopPropagation();
+                const isShowing = menu.classList.contains('show');
+                closeAllMenus();
+                
+                if (!isShowing) {
+                    // Reset to default view
+                    state[regionKey] = 'Frequently Used';
+                    search.value = '';
+
+                    menu.classList.add('show');
+                    // Z-Index fix for glassmorphism stacking context
+                    const parentCard = container.closest('.glass-card');
+                    if (parentCard) parentCard.style.zIndex = '50';
+                    
+                    search.focus();
+                    render();
+                }
+            };
+
+            search.oninput = render;
+            search.onclick = (e) => e.stopPropagation();
+        }
+
+        function closeAllMenus() {
+            document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.glass-card').forEach(c => c.style.zIndex = '');
+        }
+
+        document.addEventListener('click', closeAllMenus);
+
+        // Core App Logic
+        const liveEpochEl = document.getElementById('liveEpoch');
+        const epochInput = document.getElementById('epochInput');
+        const toast = document.getElementById('toast');
+        const timeFormatToggle = document.getElementById('timeFormatToggle');
+        const ampmContainer = document.getElementById('ampmContainer');
+        const dateInputGrid = document.getElementById('dateInputGrid');
+        const hrInput = document.getElementById('hr');
+        const ampmSelect = document.getElementById('ampm');
+
+        const resEpochTimestamp = document.getElementById('resEpochTimestamp');
+        const resEpochMillis = document.getElementById('resEpochMillis');
+        const resGMT = document.getElementById('resGMT');
+        const resLocal = document.getElementById('resLocal');
+        const localTzLabel = document.getElementById('localTzLabel');
+        const resRelative = document.getElementById('resRelative');
+
+        const dFields = {
+            yr: document.getElementById('yr'), mo: document.getElementById('mo'),
+            da: document.getElementById('da'), hr: document.getElementById('hr'),
+            mi: document.getElementById('mi'), sc: document.getElementById('sc')
+        };
+
+        function updateTimeFormatUI() {
+            const is12h = timeFormatToggle.checked;
+            if (is12h) {
+                ampmContainer.classList.remove('hidden');
+                dateInputGrid.classList.remove('md:grid-cols-6');
+                dateInputGrid.style.gridTemplateColumns = "repeat(7, minmax(0, 1fr))";
+                hrInput.placeholder = "1-12";
+            } else {
+                ampmContainer.classList.add('hidden');
+                dateInputGrid.style.gridTemplateColumns = "";
+                dateInputGrid.classList.add('md:grid-cols-6');
+                hrInput.placeholder = "0-23";
+            }
+        }
+        
+        timeFormatToggle.addEventListener('change', updateTimeFormatUI);
+
+        const mediaQuery = window.matchMedia('(min-width: 768px)');
+        function handleGridResponsive(e) {
+            if (timeFormatToggle.checked) {
+                if (e.matches) {
+                    dateInputGrid.style.gridTemplateColumns = "repeat(7, minmax(0, 1fr))";
+                } else {
+                    dateInputGrid.style.gridTemplateColumns = "";
+                }
+            }
+        }
+        mediaQuery.addListener(handleGridResponsive);
+        timeFormatToggle.addEventListener('change', () => handleGridResponsive(mediaQuery));
+
+        setInterval(() => {
+            liveEpochEl.textContent = Math.floor(Date.now() / 1000);
+        }, 1000);
+
+        function setToNow() {
+            epochInput.value = Math.floor(Date.now() / 1000);
+            processEpoch();
+        }
+
+        function processEpoch() {
+            let val = epochInput.value.trim();
+            if (!val) {
+                resetResults();
+                return;
+            }
+
+            let date;
+            if (/^-?\d+$/.test(val)) {
+                let timestamp = parseInt(val);
+                date = val.length > 11 ? new Date(timestamp) : new Date(timestamp * 1000);
+            } else {
+                const d = new Date(val);
+                if (!isNaN(d.getTime())) date = d;
+                else return;
+            }
+
+            if (isNaN(date.getTime())) return;
+
+            resEpochTimestamp.textContent = Math.floor(date.getTime() / 1000);
+            resEpochMillis.textContent = date.getTime();
+
+            const gmtFmt = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', second: 'numeric',
+                timeZone: 'UTC', hour12: true
+            });
+            resGMT.textContent = gmtFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+
+            const tz = state.epochTz;
+            localTzLabel.textContent = tz === userTz ? "Local" : tz;
+            const localFmt = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', second: 'numeric',
+                timeZone: tz, timeZoneName: 'short', hour12: true
+            });
+            resLocal.textContent = localFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+            resRelative.textContent = getRelativeTime(date);
+        }
+
+        function resetResults() {
+             resEpochTimestamp.textContent = "---";
+             resEpochMillis.textContent = "---";
+             resGMT.textContent = "---";
+             resLocal.textContent = "---";
+             resRelative.textContent = "---";
+        }
+
+        function convertToEpoch() {
+            let hourVal = parseInt(dFields.hr.value) || 0;
+            if (timeFormatToggle.checked) {
+                const ampm = ampmSelect.value;
+                if (ampm === 'PM' && hourVal < 12) hourVal += 12;
+                else if (ampm === 'AM' && hourVal === 12) hourVal = 0;
+            }
+
+            const vals = {
+                yr: parseInt(dFields.yr.value) || 1970, mo: (parseInt(dFields.mo.value) || 1) - 1,
+                da: parseInt(dFields.da.value) || 1, hr: hourVal,
+                mi: parseInt(dFields.mi.value) || 0, sc: parseInt(dFields.sc.value) || 0
+            };
+            const tz = state.dateToEpochTz;
+            let date;
+            if (tz === 'UTC') {
+                date = new Date(Date.UTC(vals.yr, vals.mo, vals.da, vals.hr, vals.mi, vals.sc));
+            } else {
+                const dateStr = `${vals.yr}-${String(vals.mo+1).padStart(2,'0')}-${String(vals.da).padStart(2,'0')}T${String(vals.hr).padStart(2,'0')}:${String(vals.mi).padStart(2,'0')}:${String(vals.sc).padStart(2,'0')}`;
+                const dummy = new Date(dateStr);
+                const offset = (new Date(dummy.toLocaleString("en-US", {timeZone: tz})) - dummy);
+                date = new Date(dummy.getTime() - offset);
+            }
+            const epoch = date.getTime();
+            document.getElementById('resGenSec').textContent = Math.floor(epoch / 1000);
+            document.getElementById('resGenMs').textContent = epoch;
+
+            const gmtFmt = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', second: 'numeric',
+                timeZone: 'UTC', hour12: true
+            });
+            document.getElementById('resGenGMT').textContent = gmtFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+
+            const localFmt = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', second: 'numeric',
+                timeZone: userTz, timeZoneName: 'short', hour12: true
+            });
+            document.getElementById('resGenLocal').textContent = localFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+            document.getElementById('genLocalTzLabel').textContent = userTz === userTz ? "Local" : userTz;
+        }
+
+        function getRelativeTime(date) {
+            const diff = (Date.now() - date.getTime()) / 1000;
+            const absDiff = Math.abs(diff);
+            const prefix = diff > 0 ? "" : "in ";
+            const suffix = diff > 0 ? " ago" : "";
+            if (absDiff < 60) return `${prefix}${Math.floor(absDiff)} seconds${suffix}`;
+            if (absDiff < 3600) return `${prefix}${Math.floor(absDiff/60)} minutes${suffix}`;
+            if (absDiff < 86400) return `${prefix}${Math.floor(absDiff/3600)} hours${suffix}`;
+            return `${prefix}${Math.floor(absDiff/86400)} days${suffix}`;
+        }
+
+        function copyText(id) {
+            const txt = document.getElementById(id).textContent;
+            if (txt.includes('---')) return;
+            const area = document.createElement("textarea");
+            area.value = txt; document.body.appendChild(area);
+            area.select(); document.execCommand('copy');
+            document.body.removeChild(area);
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        window.onload = () => {
+            setupCustomDropdown('epochTz');
+            setupCustomDropdown('dateToEpochTz');
+            epochInput.value = Math.floor(Date.now() / 1000);
+            const now = new Date();
+            dFields.yr.value = now.getFullYear(); dFields.mo.value = now.getMonth() + 1;
+            dFields.da.value = now.getDate(); 
+            
+            let hours = now.getHours();
+            if (hours >= 12) {
+                ampmSelect.value = "PM";
+                if (hours > 12) hours -= 12;
+            } else {
+                ampmSelect.value = "AM";
+                if (hours === 0) hours = 12;
+            }
+            dFields.hr.value = hours;
+            dFields.mi.value = now.getMinutes(); dFields.sc.value = now.getSeconds();
+            
+            updateTimeFormatUI();
+            handleGridResponsive(mediaQuery);
+            processEpoch();
+            convertToEpoch();
+        };
+
+        epochInput.addEventListener('input', processEpoch);
+    </script>
+</body>
+</html>
