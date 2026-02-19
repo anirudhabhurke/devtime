@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevTime // Command</title>
+    <title>DevTime</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -474,7 +475,7 @@
     <div id="toast" class="toast">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-check text-black"></i>
-            <span>Copied to Buffer</span>
+            <span>Copied to Clipboard</span>
         </div>
     </div>
 
@@ -736,12 +737,21 @@
             }
 
             let date;
+            let isMs = false;
             if (/^-?\d+$/.test(val)) {
                 let timestamp = parseInt(val);
-                date = val.length > 11 ? new Date(timestamp) : new Date(timestamp * 1000);
+                if (val.length > 11) {
+                    date = new Date(timestamp);
+                    isMs = true;
+                } else {
+                    date = new Date(timestamp * 1000);
+                }
             } else {
                 const d = new Date(val);
-                if (!isNaN(d.getTime())) date = d;
+                if (!isNaN(d.getTime())) {
+                    date = d;
+                    isMs = val.includes('.');
+                }
                 else return;
             }
 
@@ -750,21 +760,26 @@
             resEpochTimestamp.textContent = Math.floor(date.getTime() / 1000);
             resEpochMillis.textContent = date.getTime();
 
-            const gmtFmt = new Intl.DateTimeFormat('en-US', {
+            const formatOptions = {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
                 hour: 'numeric', minute: 'numeric', second: 'numeric',
-                timeZone: 'UTC', hour12: true
+                hour12: true
+            };
+            if (isMs) formatOptions.fractionalSecondDigits = 3;
+
+            const gmtFmt = new Intl.DateTimeFormat('en-US', {
+                ...formatOptions,
+                timeZone: 'UTC'
             });
-            resGMT.textContent = gmtFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+            resGMT.textContent = gmtFmt.format(date).replace(' at ', ' ').replace(/\b(am|pm)\b/g, match => match.toUpperCase());
 
             const tz = state.epochTz;
             localTzLabel.textContent = tz === userTz ? "Local" : tz.replace(/_/g, ' ');
             const localFmt = new Intl.DateTimeFormat('en-US', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                hour: 'numeric', minute: 'numeric', second: 'numeric',
-                timeZone: tz, timeZoneName: 'short', hour12: true
+                ...formatOptions,
+                timeZone: tz, timeZoneName: 'shortOffset', hour12: true
             });
-            resLocal.textContent = localFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+            resLocal.textContent = localFmt.format(date).replace(' at ', ' ').replace(/\b(am|pm)\b/g, match => match.toUpperCase());
             resRelative.textContent = getRelativeTime(date);
         }
 
@@ -803,19 +818,23 @@
             document.getElementById('resGenSec').textContent = Math.floor(epoch / 1000);
             document.getElementById('resGenMs').textContent = epoch;
 
-            const gmtFmt = new Intl.DateTimeFormat('en-US', {
+            const formatOptions = {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
                 hour: 'numeric', minute: 'numeric', second: 'numeric',
-                timeZone: 'UTC', hour12: true
+                hour12: true
+            };
+
+            const gmtFmt = new Intl.DateTimeFormat('en-US', {
+                ...formatOptions,
+                timeZone: 'UTC'
             });
-            document.getElementById('resGenGMT').textContent = gmtFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+            document.getElementById('resGenGMT').textContent = gmtFmt.format(date).replace(' at ', ' ').replace(/\b(am|pm)\b/g, match => match.toUpperCase());
 
             const localFmt = new Intl.DateTimeFormat('en-US', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                hour: 'numeric', minute: 'numeric', second: 'numeric',
+                ...formatOptions,
                 timeZone: userTz, timeZoneName: 'short', hour12: true
             });
-            document.getElementById('resGenLocal').textContent = localFmt.format(date).replace(/\b(am|pm)\b/g, match => match.toUpperCase());
+            document.getElementById('resGenLocal').textContent = localFmt.format(date).replace(' at ', ' ').replace(/\b(am|pm)\b/g, match => match.toUpperCase());
             document.getElementById('genLocalTzLabel').textContent = userTz === userTz ? "Local" : userTz.replace(/_/g, ' ');
         }
 
